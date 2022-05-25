@@ -17,6 +17,9 @@ dynamic_memcheck:
 	@echo "Build dynamically with memcheck"
 	@go build -gcflags '-m -l'
 
+test:
+	@go test -v
+
 benchmem:
 	@echo "Memory Bemchmark"
 	@go test -bench . -benchmem
