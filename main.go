@@ -165,6 +165,7 @@ func main() {
 		printElf64Sections(elfHeader64)
 
 	} else if *disassComm {
+		//TODO: complete this part
 		fmt.Println("disassable")
 	}
 }
