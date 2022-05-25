@@ -65,18 +65,25 @@ func TestIsElf(t *testing.T) {
 
 func BenchmarkReadElf32(b *testing.B) {
 
-	fd := openElf(elfFile)
+	var fd _Ctype_int
 
-	readElf32(fd)
+	for n := 0; n < b.N; n++ {
+
+		fd = openElf(elfFile)
+		readElf32(fd)
+	}
 }
 
 func BenchmarkReadElf64(b *testing.B) {
 
-	fd := openElf(elfFile)
+	var fd _Ctype_int
 
-	elfHeader := readElf32(fd)
+	for n := 0; n < b.N; n++ {
+		fd = openElf(elfFile)
+		elfHeader := readElf32(fd)
 
-	if isElf64(elfHeader) {
-		readElf64(fd)
+		if isElf64(elfHeader) {
+			readElf64(fd)
+		}
 	}
 }
