@@ -7,6 +7,7 @@ package main
 */
 import "C"
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -137,6 +138,62 @@ func printElf64Sections(elfHeader *C.Elf64_Ehdr) {
 	fmt.Printf("Program size:\n  0x%08x\n", elfHeader.e_phentsize)
 }
 
+func readSection(fd C.int, sectionHeader C.Elf64_Shdr) ([]byte, error) {
+
+	buffer := make([]byte, sectionHeader.sh_size)
+
+	if C.read(fd, unsafe.Pointer(&buffer[0]), sectionHeader.sh_size) != C.long(sectionHeader.sh_size) {
+		return []byte{}, errors.New("could not read the file")
+	}
+
+	return buffer, nil
+}
+
+func saveTextSection(fd C.int, elfHeader *C.Elf64_Ehdr, sectionHeaders []*C.Elf64_Shdr) error {
+
+	textSection := []byte(".text")
+	ptrTextSection := (*C.char)(unsafe.Pointer(&textSection[0]))
+
+	var sectionIndex int
+
+	sectionBuffer, err := readSection(fd, *sectionHeaders[elfHeader.e_shstrndx])
+
+	if err != nil {
+		return err
+	}
+
+	for index, section := range sectionHeaders {
+
+		ptrSectionBuffer := unsafe.Pointer(&sectionBuffer)
+
+		if C.strcmp(ptrTextSection, (*C.char)(unsafe.Add(ptrSectionBuffer, section.sh_name))) == 0 {
+			sectionIndex = index
+		}
+	}
+
+	buffer := make([]byte, sectionHeaders[sectionIndex].sh_size)
+
+	C.read(fd, unsafe.Pointer(&buffer[0]), sectionHeaders[sectionIndex].sh_size)
+
+	err = os.WriteFile("text.S", buffer, 0755)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func readSectionHeader(fd C.int, elfHeader *C.Elf64_Ehdr, sectionHeaders []*C.Elf64_Shdr) {
+
+	for i := 0; i < int(elfHeader.e_shnum); i++ {
+		C.read(fd, unsafe.Pointer(sectionHeaders[i]), C.ulong(elfHeader.e_shentsize))
+	}
+}
+
+func disassamble(fd C.int, elfHader *C.Elf64_Ehdr, sectionTable *C.Elf64_Shdr) {
+}
+
 func main() {
 
 	printComm := flag.Bool("p", false, "print the elf header")
@@ -161,8 +218,13 @@ func main() {
 	}
 
 	if *printComm && isElf64(elfHeader) {
+
 		elfHeader64 := readElf64(fd)
+		sectionHeaders := make([]*C.Elf64_Shdr, elfHeader64.e_shentsize * elfHeader64.e_shnum)
+
 		printElf64Sections(elfHeader64)
+		readSectionHeader(fd, elfHeader64, sectionHeaders)
+		saveTextSection(fd, elfHeader64, sectionHeaders)
 
 	} else if *disassComm {
 		//TODO: complete this part
